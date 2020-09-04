@@ -26,8 +26,14 @@ import com.jagrosh.jmusicbot.commands.owner.*;
 import com.jagrosh.jmusicbot.entities.Prompt;
 import com.jagrosh.jmusicbot.gui.GUI;
 import com.jagrosh.jmusicbot.settings.SettingsManager;
+import com.jagrosh.jmusicbot.timer_tasks.EndPlayTask;
+import com.jagrosh.jmusicbot.timer_tasks.StartPlayTask;
 import com.jagrosh.jmusicbot.utils.OtherUtil;
 import java.awt.Color;
+import java.util.Calendar;
+import java.util.TimeZone;
+import java.util.Timer;
+import java.util.stream.Stream;
 import javax.security.auth.login.LoginException;
 import net.dv8tion.jda.core.*;
 import net.dv8tion.jda.core.entities.Game;
@@ -62,7 +68,7 @@ public class JMusicBot
         String version = OtherUtil.checkVersion(prompt);
         
         // load config
-        BotConfig config = new BotConfig(prompt);
+        BotConfig config = new BotConfig(prompt, System.getenv());
         config.load();
         if(!config.isValid())
             return;
@@ -187,5 +193,38 @@ public class JMusicBot
                     + "invalid: " + ex + "\nConfig Location: " + config.getConfigLocation());
             System.exit(1);
         }
+
+        // check playing schedule and start Timers
+        long MS_IN_A_DAY = 60*1000L*60*24;
+        String autoStartTime = System.getenv().getOrDefault("music_bot_start_time", null);
+        String autoEndTime = System.getenv().getOrDefault("music_bot_end_time", null);
+
+        if (autoStartTime != null) {
+            Integer[] startTime = Stream.of(autoStartTime.split(":")).map(Integer::valueOf).toArray(Integer[]::new);
+            Calendar nextStart = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            nextStart.set(Calendar.HOUR_OF_DAY, startTime[0]);
+            nextStart.set(Calendar.MINUTE, startTime[1]);
+            nextStart.set(Calendar.SECOND, startTime[2]);
+            if (Calendar.getInstance(TimeZone.getTimeZone("UTC")).after(nextStart)) {
+                // if time already passed for today, do it tomorrow
+                nextStart.add(Calendar.DATE, 1);
+            }
+            (new Timer()).scheduleAtFixedRate(new StartPlayTask(bot), nextStart.getTime(), MS_IN_A_DAY);
+            log.info("Scheduled StartPlayTask at " + nextStart.getTime() + " and every 24 hours after it");
+        }
+        if (autoEndTime != null) {
+            Integer[] endTime = Stream.of(autoEndTime.split(":")).map(Integer::valueOf).toArray(Integer[]::new);
+            Calendar nextEnd = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            nextEnd.set(Calendar.HOUR_OF_DAY, endTime[0]);
+            nextEnd.set(Calendar.MINUTE, endTime[1]);
+            nextEnd.set(Calendar.SECOND, endTime[2]);
+            if (Calendar.getInstance(TimeZone.getTimeZone("UTC")).after(nextEnd)) {
+                // if time already passed for today, do it tomorrow
+                nextEnd.add(Calendar.DATE, 1);
+            }
+            (new Timer()).scheduleAtFixedRate(new EndPlayTask(bot), nextEnd.getTime(), MS_IN_A_DAY);
+            log.info("Scheduled EndPlayTask at " + nextEnd.getTime() + " and every 24 hours after it");
+        }
+
     }
 }

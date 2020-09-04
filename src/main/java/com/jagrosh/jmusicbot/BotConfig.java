@@ -23,6 +23,8 @@ import com.typesafe.config.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+
 import net.dv8tion.jda.core.OnlineStatus;
 import net.dv8tion.jda.core.entities.Game;
 
@@ -34,6 +36,7 @@ import net.dv8tion.jda.core.entities.Game;
 public class BotConfig
 {
     private final Prompt prompt;
+    private final Map<String, String> env;
     private final static String CONTEXT = "Config";
     private final static String START_TOKEN = "/// START OF JMUSICBOT CONFIG ///";
     private final static String END_TOKEN = "/// END OF JMUSICBOT CONFIG ///";
@@ -50,9 +53,10 @@ public class BotConfig
 
     private boolean valid = false;
     
-    public BotConfig(Prompt prompt)
+    public BotConfig(Prompt prompt, Map<String, String> env)
     {
         this.prompt = prompt;
+        this.env = env;
     }
     
     public void load()
@@ -62,6 +66,8 @@ public class BotConfig
         // read config from file
         try 
         {
+            // brand new bot
+            boolean newBot = false;
             // get the path to the config, default config.txt
             path = OtherUtil.getPath(System.getProperty("config.file", System.getProperty("config", "config.txt")));
             if(path.toFile().exists())
@@ -69,18 +75,30 @@ public class BotConfig
                 if(System.getProperty("config.file") == null)
                     System.setProperty("config.file", System.getProperty("config", "config.txt"));
                 ConfigFactory.invalidateCaches();
+            } else {
+                newBot = true;
             }
             
             // load in the config file, plus the default values
             //Config config = ConfigFactory.parseFile(path.toFile()).withFallback(ConfigFactory.load());
             Config config = ConfigFactory.load();
-            
             // set values
             token = config.getString("token");
+            // token in env overwrites what's in config.txt
+            if (env != null && env.containsKey("music_bot_token"))
+                token = env.get("music_bot_token");
             prefix = config.getString("prefix");
             altprefix = config.getString("altprefix");
             helpWord = config.getString("help");
             owner = config.getLong("owner");
+            // env owner id overwrites what's in config.txt
+            if (env != null && env.containsKey("music_bot_owner_id")) {
+                try {
+                    owner = Long.parseLong(env.get("music_bot_owner_id"));
+                } catch (NumberFormatException e) {
+                    owner = -1;
+                }
+            }
             successEmoji = config.getString("success");
             warningEmoji = config.getString("warning");
             errorEmoji = config.getString("error");
@@ -97,9 +115,9 @@ public class BotConfig
             playlistsFolder = config.getString("playlistsfolder");
             aliases = config.getConfig("aliases");
             dbots = owner == 113156185389092864L;
-            
+
             // we may need to write a new config file
-            boolean write = false;
+            boolean writeTokenAndOwner = false;
 
             // validate bot token
             if(token==null || token.isEmpty() || token.equalsIgnoreCase("BOT_TOKEN_HERE"))
@@ -115,7 +133,7 @@ public class BotConfig
                 }
                 else
                 {
-                    write = true;
+                    writeTokenAndOwner = true;
                 }
             }
             
@@ -141,12 +159,12 @@ public class BotConfig
                 }
                 else
                 {
-                    write = true;
+                    writeTokenAndOwner = true;
                 }
             }
             
-            if(write)
-                writeToFile();
+            if(newBot)
+                writeToFile(writeTokenAndOwner);
             
             // if we get through the whole config, it's good to go
             valid = true;
@@ -157,20 +175,21 @@ public class BotConfig
         }
     }
     
-    private void writeToFile()
+    private void writeToFile(boolean writeTokenAndOwner)
     {
         String original = OtherUtil.loadResource(this, "/reference.conf");
         byte[] bytes;
-        if(original==null)
-        {
-            bytes = ("token = "+token+"\r\nowner = "+owner).getBytes();
-        }
-        else
-        {
-            bytes = original.substring(original.indexOf(START_TOKEN)+START_TOKEN.length(), original.indexOf(END_TOKEN))
-                .replace("BOT_TOKEN_HERE", token)
-                .replace("0 // OWNER ID", Long.toString(owner))
-                .trim().getBytes();
+        if (writeTokenAndOwner) {
+            if (original == null) {
+                bytes = ("token = " + token + "\r\nowner = " + owner).getBytes();
+            } else {
+                bytes = original.substring(original.indexOf(START_TOKEN) + START_TOKEN.length(), original.indexOf(END_TOKEN))
+                        .replace("BOT_TOKEN_HERE", token)
+                        .replace("0 // OWNER ID", Long.toString(owner))
+                        .trim().getBytes();
+            }
+        } else {
+            bytes = original.trim().getBytes();
         }
         try 
         {
