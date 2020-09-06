@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
+import java.util.List;
 import java.util.TimeZone;
 import java.util.TimerTask;
 
@@ -22,27 +23,32 @@ public class StartPlayTask extends TimerTask {
     private CommandClient client;
     private String playList;
     private String days;
+    private String timezone;
+    private String textChannel;
+    private String voiceChannel;
     private Logger logger;
 
-    public StartPlayTask(Bot bot, String playList, String days) {
+    public StartPlayTask(Bot bot, String timezone, String playList, String days, String textChannel, String voiceChannel) {
         logger = LoggerFactory.getLogger("StartPlayTask");
         this.bot = bot;
         for (Object listener : bot.getJDA().getRegisteredListeners()) {
             if (listener instanceof CommandClient) {
-                System.out.println("found CommandClient " + listener);
                 this.client = (CommandClient) listener;
                 break;
             }
         }
         this.playList = playList;
         this.days = days;
+        this.timezone = timezone;
+        this.textChannel = textChannel;
+        this.voiceChannel = voiceChannel;
     }
 
     @Override
     public void run() {
         try {
             // check if today's the day
-            Calendar today = Calendar.getInstance(TimeZone.getTimeZone("America/Los_Angeles"));
+            Calendar today = Calendar.getInstance(TimeZone.getTimeZone(timezone));
             if (days.indexOf(String.valueOf(today.get(Calendar.DAY_OF_WEEK))) < 0) {
                 logger.info("StartPlayTask cannot start with playlist " + playList + " because today is " + today);
                 return;
@@ -51,8 +57,12 @@ public class StartPlayTask extends TimerTask {
 
             for (Guild guild : bot.getJDA().getGuilds()) {
                 Settings s = client.getSettingsFor(guild);
-                TextChannel tc = s.getTextChannel(guild);
-                VoiceChannel vc = s.getVoiceChannel(guild);
+                List<TextChannel> tcs = bot.getJDA().getTextChannelsByName(textChannel, true);
+                TextChannel tc = tcs.isEmpty() ? s.getTextChannel(guild) : tcs.get(0);
+                logger.info("Wanted text channel " + textChannel + "; Use text channel " + tc.getName() + "(" + tc.getId() + ")");
+                List<VoiceChannel> vcs = bot.getJDA().getVoiceChannelByName(voiceChannel, true);
+                VoiceChannel vc = vcs.isEmpty() ? s.getVoiceChannel(guild) : vcs.get(0);
+                logger.info("Wanted voice channel " + voiceChannel + "; Use voice channel " + vc.getName() + "(" + vc.getId() + ")");
                 String pl = (playList == null ? s.getDefaultPlaylist() : playList);
                 //tc.sendMessage((new MessageBuilder()).setContent(" Loading... `[" + pl + "]`").build())
                 //        .queue(m -> bot.getPlayerManager().loadItemOrdered(guild, pl, new ResultHandler(m, client, guild, pl,false)));

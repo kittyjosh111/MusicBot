@@ -196,38 +196,44 @@ public class JMusicBot
         }
 
         // check playing schedule and start Timers
+        String autoTimezone = System.getenv().getOrDefault("music_bot_timezone", null);
         String autoStartTime = System.getenv().getOrDefault("music_bot_start_time", null);
         String autoEndTime = System.getenv().getOrDefault("music_bot_end_time", null);
         String autoFrequency = System.getenv().getOrDefault("music_bot_frequency", "1440");
         String autoPlaylist = System.getenv().getOrDefault("music_bot_playlist", null);
-        String autoDays = System.getenv().getOrDefault("music_bot_days", null);
+        String autoDays = System.getenv().getOrDefault("music_bot_days", "1234567");
+        String autoTextChannel = System.getenv().getOrDefault("music_bot_text_channel", null);
+        String autoVoiceChannel = System.getenv().getOrDefault("music_bot_voice_channel", null);
         long MS_IN_A_MINUTE = 60*1000L;
-        int frequency = Integer.valueOf(autoFrequency);
-
-        if (autoStartTime != null) {
+        int frequency = -1;
+        try {
+            frequency = Integer.valueOf(autoFrequency);
+        } catch (NumberFormatException e) {
+            log.error(e.getMessage());
+        }
+        if (autoTimezone != null && autoStartTime != null && autoEndTime != null && frequency > 0) {
             Integer[] startTime = Stream.of(autoStartTime.split(":")).map(Integer::valueOf).toArray(Integer[]::new);
-            Calendar nextStart = Calendar.getInstance(TimeZone.getTimeZone("America/Los_Angeles"));
+            Calendar nextStart = Calendar.getInstance(TimeZone.getTimeZone(autoTimezone));
             nextStart.set(Calendar.HOUR_OF_DAY, startTime[0]);
             nextStart.set(Calendar.MINUTE, startTime[1]);
             nextStart.set(Calendar.SECOND, startTime[2]);
-            while (Calendar.getInstance(TimeZone.getTimeZone("America/Los_Angeles")).after(nextStart)) {
+            while (Calendar.getInstance(TimeZone.getTimeZone(autoTimezone)).after(nextStart)) {
                 // if time already passed for today, do it tomorrow
                 nextStart.add(Calendar.MINUTE, frequency);
             }
-            (new Timer()).scheduleAtFixedRate(new StartPlayTask(bot, autoPlaylist, autoDays), nextStart.getTime(), MS_IN_A_MINUTE * frequency);
+            (new Timer()).scheduleAtFixedRate(new StartPlayTask(bot, autoTimezone, autoPlaylist, autoDays, autoTextChannel, autoVoiceChannel), nextStart.getTime(), MS_IN_A_MINUTE * frequency);
             log.info("Scheduled StartPlayTask at " + nextStart.getTime() + " and every " + frequency + " minutes after it");
-        }
-        if (autoEndTime != null) {
+
             Integer[] endTime = Stream.of(autoEndTime.split(":")).map(Integer::valueOf).toArray(Integer[]::new);
-            Calendar nextEnd = Calendar.getInstance(TimeZone.getTimeZone("America/Los_Angeles"));
+            Calendar nextEnd = Calendar.getInstance(TimeZone.getTimeZone(autoTimezone));
             nextEnd.set(Calendar.HOUR_OF_DAY, endTime[0]);
             nextEnd.set(Calendar.MINUTE, endTime[1]);
             nextEnd.set(Calendar.SECOND, endTime[2]);
-            while (Calendar.getInstance(TimeZone.getTimeZone("America/Los_Angeles")).after(nextEnd)) {
+            while (Calendar.getInstance(TimeZone.getTimeZone(autoTimezone)).after(nextEnd)) {
                 // if time already passed for today, do it tomorrow
                 nextEnd.add(Calendar.MINUTE, frequency);
             }
-            (new Timer()).scheduleAtFixedRate(new EndPlayTask(bot, autoDays), nextEnd.getTime(), MS_IN_A_MINUTE * frequency);
+            (new Timer()).scheduleAtFixedRate(new EndPlayTask(bot, autoTimezone, autoDays, autoTextChannel), nextEnd.getTime(), MS_IN_A_MINUTE * frequency);
             log.info("Scheduled EndPlayTask at " + nextEnd.getTime() + " and every " + frequency + " minutes after it");
         }
 
