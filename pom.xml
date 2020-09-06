@@ -17,6 +17,7 @@
             <name>bintray</name>
             <url>https://dl.bintray.com/sedmelluq/com.sedmelluq</url>
         </repository>
+
     </repositories>
     
     <dependencies>
@@ -67,6 +68,12 @@
             <artifactId>hamcrest-core</artifactId>
             <version>1.3</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.mashape.unirest</groupId>
+            <artifactId>unirest-java</artifactId>
+            <version>1.4.9</version>
+            <type>jar</type>
         </dependency>
     </dependencies>
     
