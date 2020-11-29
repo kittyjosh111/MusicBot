@@ -70,7 +70,7 @@ public class StartPlayTask extends TimerTask {
                 VoiceChannel vc = vcs.isEmpty() ? s.getVoiceChannel(guild) : vcs.get(0);
                 logger.info("Wanted voice channel " + voiceChannel + "; Use voice channel " + vc.getName() + "(" + vc.getId() + ")");
                 String pl = (playList == null ? s.getDefaultPlaylist() : playList);
-                int index = (int)Math.random() * numPlaylists;
+                int index = (int)(Math.random() * numPlaylists);
                 pl = pl + index;
                 //tc.sendMessage((new MessageBuilder()).setContent(" Loading... `[" + pl + "]`").build())
                 //        .queue(m -> bot.getPlayerManager().loadItemOrdered(guild, pl, new ResultHandler(m, client, guild, pl,false)));
