@@ -36,9 +36,12 @@ import java.util.Calendar;
 import java.util.TimeZone;
 import java.util.Timer;
 import java.util.stream.Stream;
+import java.util.Arrays;
 import javax.security.auth.login.LoginException;
-import net.dv8tion.jda.core.*;
-import net.dv8tion.jda.core.entities.Game;
+import net.dv8tion.jda.api.*;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,9 +54,10 @@ public class JMusicBot
     public final static String PLAY_EMOJI  = "\u25B6"; // ▶
     public final static String PAUSE_EMOJI = "\u23F8"; // ⏸
     public final static String STOP_EMOJI  = "\u23F9"; // ⏹
-    public final static Permission[] RECOMMENDED_PERMS = new Permission[]{Permission.MESSAGE_READ, Permission.MESSAGE_WRITE, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ADD_REACTION,
+    public final static Permission[] RECOMMENDED_PERMS = {Permission.MESSAGE_READ, Permission.MESSAGE_WRITE, Permission.MESSAGE_HISTORY, Permission.MESSAGE_ADD_REACTION,
                                 Permission.MESSAGE_EMBED_LINKS, Permission.MESSAGE_ATTACH_FILES, Permission.MESSAGE_MANAGE, Permission.MESSAGE_EXT_EMOJI,
                                 Permission.MANAGE_CHANNEL, Permission.VOICE_CONNECT, Permission.VOICE_SPEAK, Permission.NICKNAME_CHANGE};
+    public final static GatewayIntent[] INTENTS = {GatewayIntent.DIRECT_MESSAGES, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_MESSAGE_REACTIONS, GatewayIntent.GUILD_VOICE_STATES};
     /**
      * @param args the command line arguments
      */
@@ -68,6 +72,10 @@ public class JMusicBot
         
         // get and check latest version
         String version = OtherUtil.checkVersion(prompt);
+        
+        // check for valid java version
+        if(!System.getProperty("java.vm.name").contains("64"))
+            prompt.alert(Prompt.Level.WARNING, "Java Version", "It appears that you may not be using a supported Java version. Please use 64-bit java.");
         
         // load config
         BotConfig config = new BotConfig(prompt, System.getenv());
@@ -145,11 +153,11 @@ public class JMusicBot
             cb.useDefaultGame();
         else if(config.getGame().getName().equalsIgnoreCase("none"))
         {
-            cb.setGame(null);
+            cb.setActivity(null);
             nogame = true;
         }
         else
-            cb.setGame(config.getGame());
+            cb.setActivity(config.getGame());
         
         if(!prompt.isNoGUI())
         {
@@ -172,13 +180,13 @@ public class JMusicBot
         // attempt to log in and start
         try
         {
-            JDA jda = new JDABuilder(AccountType.BOT)
-                    .setToken(config.getToken())
-                    .setAudioEnabled(true)
-                    .setGame(nogame ? null : Game.playing("loading..."))
+            JDA jda = JDABuilder.create(config.getToken(), Arrays.asList(INTENTS))
+                    .enableCache(CacheFlag.MEMBER_OVERRIDES, CacheFlag.VOICE_STATE)
+                    .disableCache(CacheFlag.ACTIVITY, CacheFlag.CLIENT_STATUS, CacheFlag.EMOTE)
+                    .setActivity(nogame ? null : Activity.playing("loading..."))
                     .setStatus(config.getStatus()==OnlineStatus.INVISIBLE || config.getStatus()==OnlineStatus.OFFLINE 
                             ? OnlineStatus.INVISIBLE : OnlineStatus.DO_NOT_DISTURB)
-                    .addEventListener(cb.build(), waiter, new Listener(bot))
+                    .addEventListeners(cb.build(), waiter, new Listener(bot))
                     .setBulkDeleteSplittingEnabled(true)
                     .build();
             bot.setJDA(jda);
