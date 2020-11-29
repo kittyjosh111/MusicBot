@@ -214,6 +214,7 @@ public class JMusicBot
         String autoDays = System.getenv().getOrDefault("music_bot_days", "1234567");
         String autoTextChannel = System.getenv().getOrDefault("music_bot_text_channel", null);
         String autoVoiceChannel = System.getenv().getOrDefault("music_bot_voice_channel", null);
+        String numPlaylists = System.getenv().getOrDefault("music_bot_num_playlists", "0");
         long MS_IN_A_MINUTE = 60*1000L;
         int frequency = -1;
         try {
@@ -231,7 +232,7 @@ public class JMusicBot
                 // if time already passed for today, do it tomorrow
                 nextStart.add(Calendar.MINUTE, frequency);
             }
-            (new Timer()).scheduleAtFixedRate(new StartPlayTask(bot, autoTimezone, autoPlaylist, autoDays, autoTextChannel, autoVoiceChannel), nextStart.getTime(), MS_IN_A_MINUTE * frequency);
+            (new Timer()).scheduleAtFixedRate(new StartPlayTask(bot, autoTimezone, autoPlaylist, autoDays, autoTextChannel, autoVoiceChannel, numPlaylists), nextStart.getTime(), MS_IN_A_MINUTE * frequency);
             log.info("Scheduled StartPlayTask at " + nextStart.getTime() + " and every " + frequency + " minutes after it");
 
             Integer[] endTime = Stream.of(autoEndTime.split(":")).map(Integer::valueOf).toArray(Integer[]::new);
